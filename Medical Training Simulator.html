@@ -1,0 +1,983 @@
+<!doctype html>
+<html lang="th" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Medical Training Simulator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/_sdk/data_sdk.js"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <style>
+    body {
+      box-sizing: border-box;
+      font-family: 'Sarabun', 'Noto Sans Thai', sans-serif;
+    }
+    
+    @keyframes pulse-slow {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+    
+    .pulse-animation {
+      animation: pulse-slow 2s ease-in-out infinite;
+    }
+    
+    @keyframes fade-in {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .fade-in {
+      animation: fade-in 0.5s ease-out;
+    }
+    
+    .module-card {
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    
+    .module-card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    }
+    
+    .step-indicator {
+      transition: all 0.3s ease;
+    }
+    
+    .step-indicator.active {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      transform: scale(1.1);
+    }
+    
+    .step-indicator.completed {
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    }
+    
+    .injection-point {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      position: absolute;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: 3px solid rgba(239, 68, 68, 0.5);
+      background: rgba(239, 68, 68, 0.2);
+    }
+    
+    .injection-point:hover {
+      transform: scale(1.3);
+      border-color: rgba(239, 68, 68, 0.9);
+      background: rgba(239, 68, 68, 0.4);
+    }
+    
+    .injection-point.correct {
+      border-color: rgba(34, 197, 94, 0.9);
+      background: rgba(34, 197, 94, 0.4);
+    }
+    
+    .cpr-meter {
+      height: 200px;
+      background: linear-gradient(to top, #ef4444 0%, #fbbf24 50%, #10b981 100%);
+      border-radius: 12px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .cpr-indicator {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.8);
+      transition: height 0.1s ease;
+      border-radius: 12px 12px 0 0;
+    }
+    
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 16px 24px;
+      border-radius: 12px;
+      color: white;
+      font-weight: 600;
+      z-index: 1000;
+      animation: fade-in 0.3s ease-out;
+    }
+    
+    .toast.success {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+    
+    .toast.error {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    }
+    
+    .toast.info {
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    }
+  </style>
+  <style>@view-transition { navigation: auto; }</style>
+ </head>
+ <body class="h-full bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50">
+  <div id="app" class="h-full w-full overflow-auto"><!-- Main Menu Screen -->
+   <div id="main-menu" class="min-h-full flex flex-col items-center justify-center p-8">
+    <div class="text-center mb-12 fade-in">
+     <div class="mb-4">
+      <svg class="w-24 h-24 mx-auto text-teal-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+      </svg>
+     </div>
+     <h1 id="app-title" class="text-5xl font-bold mb-4 bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">Medical Training Simulator</h1>
+     <p id="app-subtitle" class="text-xl text-gray-600">ระบบฝึกทักษะทางการแพทย์ด้วยการทดลองผ่านโปรแกรม</p>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl w-full mb-8"><!-- Module A: IM Injection -->
+     <div class="module-card bg-white rounded-2xl shadow-lg p-8 border-4 border-teal-100">
+      <div class="text-center">
+       <div class="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-teal-100 to-teal-200 rounded-full flex items-center justify-center">
+        <svg class="w-12 h-12 text-teal-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+        </svg>
+       </div>
+       <h3 id="module-a-title" class="text-2xl font-bold text-gray-800 mb-3">การฉีดยาเข้ากล้ามเนื้อ (IM)</h3>
+       <p class="text-gray-600 mb-6">ฝึกเทคนิคการฉีดยาเข้ากล้ามเนื้อที่ถูกต้องและปลอดภัย</p><button onclick="startModule('A')" class="w-full bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold py-4 px-6 rounded-xl transition-all transform hover:scale-105"> เริ่มฝึก Module A </button>
+      </div>
+     </div><!-- Module B: IV Injection -->
+     <div class="module-card bg-white rounded-2xl shadow-lg p-8 border-4 border-blue-100">
+      <div class="text-center">
+       <div class="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full flex items-center justify-center">
+        <svg class="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
+        </svg>
+       </div>
+       <h3 id="module-b-title" class="text-2xl font-bold text-gray-800 mb-3">การฉีดยาเข้าหลอดเลือดดำ (IV)</h3>
+       <p class="text-gray-600 mb-6">ฝึกทักษะการหาเส้นเลือดและการแทงเข็ม IV อย่างแม่นยำ</p><button onclick="startModule('B')" class="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold py-4 px-6 rounded-xl transition-all transform hover:scale-105"> เริ่มฝึก Module B </button>
+      </div>
+     </div><!-- Module C: CPR -->
+     <div class="module-card bg-white rounded-2xl shadow-lg p-8 border-4 border-red-100">
+      <div class="text-center">
+       <div class="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-red-100 to-red-200 rounded-full flex items-center justify-center">
+        <svg class="w-12 h-12 text-red-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+        </svg>
+       </div>
+       <h3 id="module-c-title" class="text-2xl font-bold text-gray-800 mb-3">การปฐมพยาบาลเบื้องต้น (CPR)</h3>
+       <p class="text-gray-600 mb-6">ฝึกการกดหน้าอกและช่วยชีวิตในสถานการณ์ฉุกเฉิน</p><button onclick="startModule('C')" class="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold py-4 px-6 rounded-xl transition-all transform hover:scale-105"> เริ่มฝึก Module C </button>
+      </div>
+     </div>
+    </div><!-- Training History -->
+    <div class="max-w-6xl w-full bg-white rounded-2xl shadow-lg p-8">
+     <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+      <svg class="w-8 h-8 mr-3 text-teal-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+      </svg> ประวัติการฝึก</h2>
+     <div id="training-history" class="space-y-4">
+      <p class="text-gray-500 text-center py-8">ยังไม่มีประวัติการฝึก</p>
+     </div>
+    </div>
+   </div><!-- Training Screen -->
+   <div id="training-screen" class="hidden min-h-full flex flex-col p-8">
+    <div class="max-w-7xl w-full mx-auto"><!-- Header -->
+     <div class="bg-white rounded-2xl shadow-lg p-6 mb-8">
+      <div class="flex items-center justify-between">
+       <div class="flex items-center"><button onclick="exitModule()" class="mr-4 text-gray-600 hover:text-gray-800 transition-colors">
+         <svg class="w-8 h-8" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+         </svg></button>
+        <div>
+         <h2 id="current-module-title" class="text-3xl font-bold text-gray-800"></h2>
+         <p id="current-step-text" class="text-gray-600 mt-1"></p>
+        </div>
+       </div>
+       <div class="text-right">
+        <div class="text-4xl font-bold text-teal-600" id="score-display">
+         0
+        </div>
+        <div class="text-sm text-gray-600">
+         คะแนน
+        </div>
+       </div>
+      </div>
+     </div><!-- Steps Progress -->
+     <div class="bg-white rounded-2xl shadow-lg p-6 mb-8">
+      <div id="steps-container" class="flex items-center justify-between"></div>
+     </div><!-- Training Area -->
+     <div class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl shadow-lg p-12 mb-8 relative" style="min-height: 500px;">
+      <div id="training-area" class="relative h-full"></div>
+     </div><!-- Action Buttons -->
+     <div id="action-buttons" class="flex gap-4 justify-center"></div>
+    </div>
+   </div><!-- Feedback Screen -->
+   <div id="feedback-screen" class="hidden min-h-full flex items-center justify-center p-8">
+    <div class="max-w-3xl w-full bg-white rounded-2xl shadow-2xl p-12 text-center">
+     <div id="feedback-icon" class="mb-8"></div>
+     <h2 class="text-4xl font-bold text-gray-800 mb-4">เสร็จสิ้นการฝึก!</h2>
+     <div class="bg-gradient-to-r from-teal-50 to-blue-50 rounded-xl p-8 mb-8">
+      <div class="text-6xl font-bold text-teal-600 mb-2" id="final-score">
+       0
+      </div>
+      <div class="text-xl text-gray-600 mb-6">
+       คะแนนรวม
+      </div>
+      <div class="grid grid-cols-2 gap-6 text-left">
+       <div>
+        <div class="text-gray-600 mb-1">
+         ความแม่นยำ
+        </div>
+        <div class="text-2xl font-bold text-gray-800" id="accuracy-display">
+         0%
+        </div>
+       </div>
+       <div>
+        <div class="text-gray-600 mb-1">
+         ขั้นตอนที่ทำสำเร็จ
+        </div>
+        <div class="text-2xl font-bold text-gray-800" id="steps-completed-display">
+         0/0
+        </div>
+       </div>
+      </div>
+     </div>
+     <div class="bg-gray-50 rounded-xl p-6 mb-8 text-left">
+      <h3 class="text-xl font-bold text-gray-800 mb-4">ข้อเสนอแนะ</h3>
+      <div id="feedback-text" class="text-gray-700 leading-relaxed"></div>
+     </div>
+     <div class="flex gap-4 justify-center"><button onclick="retryModule()" class="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold py-4 px-8 rounded-xl transition-all transform hover:scale-105"> ฝึกอีกครั้ง </button> <button onclick="exitToMenu()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-4 px-8 rounded-xl transition-all"> กลับหน้าหลัก </button>
+     </div>
+    </div>
+   </div>
+  </div>
+  <script>
+    const defaultConfig = {
+      app_title: "VR Medical Training Simulator",
+      app_subtitle: "ระบบฝึกทักษะทางการแพทย์ด้วย VR",
+      module_a_title: "การฉีดยาเข้ากล้ามเนื้อ (IM)",
+      module_b_title: "การฉีดยาเข้าหลอดเลือดดำ (IV)",
+      module_c_title: "การปฐมพยาบาลเบื้องต้น (CPR)"
+    };
+
+    let currentModule = null;
+    let currentStep = 0;
+    let score = 0;
+    let trainingData = [];
+    let moduleSteps = [];
+    let startTime = null;
+    let cprCompressions = 0;
+    let cprDepth = 0;
+    let cprInterval = null;
+
+    const modules = {
+      'A': {
+        name: () => window.elementSdk?.config?.module_a_title || defaultConfig.module_a_title,
+        steps: [
+          { name: 'เตรียมยาและอุปกรณ์', action: 'prepare' },
+          { name: 'เลือกตำแหน่งฉีด', action: 'select_position' },
+          { name: 'ทำความสะอาดผิวหนัง', action: 'clean_skin' },
+          { name: 'แทงเข็มเข้ากล้ามเนื้อ', action: 'inject_im' },
+          { name: 'ถอนเข็มและกดแผล', action: 'withdraw' }
+        ]
+      },
+      'B': {
+        name: () => window.elementSdk?.config?.module_b_title || defaultConfig.module_b_title,
+        steps: [
+          { name: 'เตรียมยาและอุปกรณ์', action: 'prepare' },
+          { name: 'รัดแขนผู้ป่วย', action: 'tourniquet' },
+          { name: 'หาและเลือกเส้นเลือด', action: 'select_vein' },
+          { name: 'ทำความสะอาดผิวหนัง', action: 'clean_skin' },
+          { name: 'แทงเข็มเข้าเส้นเลือด', action: 'inject_iv' },
+          { name: 'ตรวจสอบการเข้าเส้น', action: 'verify' }
+        ]
+      },
+      'C': {
+        name: () => window.elementSdk?.config?.module_c_title || defaultConfig.module_c_title,
+        steps: [
+          { name: 'ประเมินสถานการณ์', action: 'assess' },
+          { name: 'ตรวจสอบการตอบสนอง', action: 'check_response' },
+          { name: 'แจ้งเหตุฉุกเฉิน', action: 'call_help' },
+          { name: 'กดหน้าอก (CPR)', action: 'cpr' },
+          { name: 'ประเมินผลและทำซ้ำ', action: 'evaluate' }
+        ]
+      }
+    };
+
+    function startModule(moduleId) {
+      currentModule = moduleId;
+      currentStep = 0;
+      score = 0;
+      startTime = new Date();
+      moduleSteps = modules[moduleId].steps;
+      
+      document.getElementById('main-menu').classList.add('hidden');
+      document.getElementById('training-screen').classList.remove('hidden');
+      document.getElementById('current-module-title').textContent = modules[moduleId].name();
+      
+      updateStepsProgress();
+      loadStep();
+    }
+
+    function updateStepsProgress() {
+      const container = document.getElementById('steps-container');
+      container.innerHTML = '';
+      
+      moduleSteps.forEach((step, index) => {
+        const stepEl = document.createElement('div');
+        stepEl.className = 'flex-1 text-center';
+        
+        const indicator = document.createElement('div');
+        indicator.className = 'step-indicator w-12 h-12 mx-auto rounded-full flex items-center justify-center text-white font-bold mb-2';
+        
+        if (index < currentStep) {
+          indicator.classList.add('completed');
+          indicator.innerHTML = '✓';
+        } else if (index === currentStep) {
+          indicator.classList.add('active');
+          indicator.textContent = index + 1;
+        } else {
+          indicator.style.background = '#e5e7eb';
+          indicator.style.color = '#6b7280';
+          indicator.textContent = index + 1;
+        }
+        
+        const label = document.createElement('div');
+        label.className = 'text-sm font-medium';
+        label.style.color = index <= currentStep ? '#1f2937' : '#9ca3af';
+        label.textContent = step.name;
+        
+        stepEl.appendChild(indicator);
+        stepEl.appendChild(label);
+        container.appendChild(stepEl);
+      });
+    }
+
+    function loadStep() {
+      const step = moduleSteps[currentStep];
+      document.getElementById('current-step-text').textContent = `ขั้นตอนที่ ${currentStep + 1}: ${step.name}`;
+      document.getElementById('score-display').textContent = score;
+      
+      const trainingArea = document.getElementById('training-area');
+      const actionButtons = document.getElementById('action-buttons');
+      trainingArea.innerHTML = '';
+      actionButtons.innerHTML = '';
+      
+      if (step.action === 'prepare') {
+        showPrepareEquipment();
+      } else if (step.action === 'select_position') {
+        showPositionSelection();
+      } else if (step.action === 'clean_skin') {
+        showCleanSkin();
+      } else if (step.action === 'inject_im') {
+        showIMInjection();
+      } else if (step.action === 'withdraw') {
+        showWithdraw();
+      } else if (step.action === 'tourniquet') {
+        showTourniquet();
+      } else if (step.action === 'select_vein') {
+        showVeinSelection();
+      } else if (step.action === 'inject_iv') {
+        showIVInjection();
+      } else if (step.action === 'verify') {
+        showVerification();
+      } else if (step.action === 'assess') {
+        showAssessment();
+      } else if (step.action === 'check_response') {
+        showCheckResponse();
+      } else if (step.action === 'call_help') {
+        showCallHelp();
+      } else if (step.action === 'cpr') {
+        showCPR();
+      } else if (step.action === 'evaluate') {
+        showEvaluate();
+      }
+    }
+
+    function showPrepareEquipment() {
+      const area = document.getElementById('training-area');
+      area.innerHTML = `
+        <div class="flex flex-col items-center justify-center h-full">
+          <div class="text-center mb-8">
+            <svg class="w-32 h-32 mx-auto text-teal-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+            </svg>
+            <h3 class="text-2xl font-bold text-gray-800 mb-4">เตรียมอุปกรณ์</h3>
+            <p class="text-gray-600">ตรวจสอบและเตรียมอุปกรณ์ทั้งหมดให้พร้อม</p>
+          </div>
+          <div class="grid grid-cols-3 gap-6 mb-8">
+            <div class="bg-white rounded-xl p-6 shadow-lg text-center cursor-pointer hover:shadow-xl transition-all" onclick="selectEquipment('syringe')">
+              <div class="text-5xl mb-3">💉</div>
+              <div class="font-semibold">เข็มฉีดยา</div>
+            </div>
+            <div class="bg-white rounded-xl p-6 shadow-lg text-center cursor-pointer hover:shadow-xl transition-all" onclick="selectEquipment('vial')">
+              <div class="text-5xl mb-3">💊</div>
+              <div class="font-semibold">ขวดยา</div>
+            </div>
+            <div class="bg-white rounded-xl p-6 shadow-lg text-center cursor-pointer hover:shadow-xl transition-all" onclick="selectEquipment('alcohol')">
+              <div class="text-5xl mb-3">🧴</div>
+              <div class="font-semibold">แอลกอฮอล์</div>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      const buttons = document.getElementById('action-buttons');
+      buttons.innerHTML = `
+        <button onclick="completeStep(15)" class="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold py-4 px-12 rounded-xl transition-all transform hover:scale-105">
+          เตรียมพร้อมแล้ว
+        </button>
+      `;
+    }
+
+    function selectEquipment(type) {
+      showToast(`เลือก${type === 'syringe' ? 'เข็มฉีดยา' : type === 'vial' ? 'ขวดยา' : 'แอลกอฮอล์'}แล้ว`, 'success');
+    }
+
+    function showPositionSelection() {
+      const area = document.getElementById('training-area');
+      area.innerHTML = `
+        <div class="flex items-center justify-center h-full">
+          <div class="relative">
+            <svg class="w-96 h-96" viewBox="0 0 400 400">
+              <ellipse cx="200" cy="200" rx="120" ry="180" fill="#fde68a" stroke="#f59e0b" stroke-width="3"/>
+              <ellipse cx="200" cy="150" rx="80" ry="60" fill="#fed7aa" stroke="#f59e0b" stroke-width="2"/>
+              <circle cx="180" cy="140" r="8" fill="#78350f"/>
+              <circle cx="220" cy="140" r="8" fill="#78350f"/>
+              <path d="M 180 170 Q 200 180 220 170" stroke="#78350f" stroke-width="3" fill="none"/>
+            </svg>
+            <div class="injection-point" style="top: 35%; left: 60%;" onclick="selectInjectionPoint('hip', true)"></div>
+            <div class="injection-point" style="top: 55%; left: 45%;" onclick="selectInjectionPoint('thigh', true)"></div>
+            <div class="injection-point" style="top: 25%; left: 30%;" onclick="selectInjectionPoint('wrong1', false)"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    function selectInjectionPoint(position, correct) {
+      if (correct) {
+        showToast('เลือกตำแหน่งถูกต้อง!', 'success');
+        setTimeout(() => completeStep(20), 1000);
+      } else {
+        showToast('ตำแหน่งไม่เหมาะสม กรุณาเลือกใหม่', 'error');
+      }
+    }
+
+    function showCleanSkin() {
+      const area = document.getElementById('training-area');
+      area.innerHTML = `
+        <div class="flex flex-col items-center justify-center h-full">
+          <div class="text-center mb-8">
+            <div class="text-8xl mb-6 pulse-animation">🧼</div>
+            <h3 class="text-2xl font-bold text-gray-800 mb-4">ทำความสะอาดผิวหนัง</h3>
+            <p class="text-gray-600">ใช้แอลกอฮอล์เช็ดบริเวณที่จะฉีดยา</p>
+          </div>
+        </div>
+      `;
+      
+      const buttons = document.getElementById('action-buttons');
+      buttons.innerHTML = `
+        <button onclick="completeStep(10)" class="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold py-4 px-12 rounded-xl transition-all transform hover:scale-105">
+          ทำความสะอาดเสร็จแล้ว
+        </button>
+      `;
+    }
+
+    function showIMInjection() {
+      const area = document.getElementById('training-area');
+      area.innerHTML = `
+        <div class="flex flex-col items-center justify-center h-full">
+          <div class="text-center mb-8">
+            <div class="text-8xl mb-6">💉</div>
+            <h3 class="text-2xl font-bold text-gray-800 mb-4">แทงเข็มเข้ากล้ามเนื้อ</h3>
+            <p class="text-gray-600 mb-4">แทงเข็มในมุม 90 องศา เข้ากล้ามเนื้อ</p>
+            <div class="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-4 inline-block">
+              <p class="text-sm text-yellow-800 font-semibold">⚠️ มุมที่ถูกต้อง: 90°</p>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      const buttons = document.getElementById('action-buttons');
+      buttons.innerHTML = `
+        <button onclick="completeStep(25)" class="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold py-4 px-12 rounded-xl transition-all transform hover:scale-105">
+          ฉีดยาเสร็จแล้ว
+        </button>
+      `;
+    }
+
+    function showWithdraw() {
+      const area = document.getElementById('training-area');
+      area.innerHTML = `
+        <div class="flex flex-col items-center justify-center h-full">
+          <div class="text-center mb-8">
+            <div class="text-8xl mb-6">✅</div>
+            <h3 class="text-2xl font-bold text-gray-800 mb-4">ถอนเข็มและกดแผล</h3>
+            <p class="text-gray-600">ถอนเข็มออกและใช้สำลีกดบริเวณที่ฉีด</p>
+          </div>
+        </div>
+      `;
+      
+      const buttons = document.getElementById('action-buttons');
+      buttons.innerHTML = `
+        <button onclick="completeStep(10)" class="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-semibold py-4 px-12 rounded-xl transition-all transform hover:scale-105">
+          เสร็จสิ้นขั้นตอน
+        </button>
+      `;
+    }
+
+    function showTourniquet() {
+      const area = document.getElementById('training-area');
+      area.innerHTML = `
+        <div class="flex flex-col items-center justify-center h-full">
+          <div class="text-center mb-8">
+            <svg class="w-64 h-64 mx-auto mb-6" viewBox="0 0 300 300">
+              <path d="M 100 100 Q 150 80 200 100 L 200 150 Q 150 170 100 150 Z" fill="#fde68a" stroke="#f59e0b" stroke-width="3"/>
+              <rect x="90" y="110" width="120" height="30" fill="#3b82f6" opacity="0.7" rx="5"/>
+            </svg>
+            <h3 class="text-2xl font-bold text-gray-800 mb-4">รัดแขนผู้ป่วย</h3>
+            <p class="text-gray-600">รัดสายรัดแขนเหนือตำแหน่งที่จะแทงเข็ม</p>
+          </div>
+        </div>
+      `;
+      
+      const buttons = document.getElementById('action-buttons');
+      buttons.innerHTML = `
+        <button onclick="completeStep(10)" class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold py-4 px-12 rounded-xl transition-all transform hover:scale-105">
+          รัดแขนเสร็จแล้ว
+        </button>
+      `;
+    }
+
+    function showVeinSelection() {
+      const area = document.getElementById('training-area');
+      area.innerHTML = `
+        <div class="flex items-center justify-center h-full">
+          <div class="relative">
+            <svg class="w-96 h-96" viewBox="0 0 400 400">
+              <path d="M 100 100 Q 150 80 200 100 L 200 300 Q 150 320 100 300 Z" fill="#fde68a" stroke="#f59e0b" stroke-width="3"/>
+              <path d="M 140 150 L 140 250" stroke="#3b82f6" stroke-width="4" opacity="0.6"/>
+              <path d="M 160 160 L 160 240" stroke="#3b82f6" stroke-width="3" opacity="0.5"/>
+              <circle cx="140" cy="200" r="15" fill="rgba(59, 130, 246, 0.3)" stroke="#3b82f6" stroke-width="2" class="cursor-pointer" onclick="selectVein(true)"/>
+              <circle cx="160" cy="180" r="12" fill="rgba(59, 130, 246, 0.2)" stroke="#3b82f6" stroke-width="2" class="cursor-pointer" onclick="selectVein(false)"/>
+            </svg>
+          </div>
+        </div>
+      `;
+    }
+
+    function selectVein(correct) {
+      if (correct) {
+        showToast('เลือกเส้นเลือดที่เหมาะสม!', 'success');
+        setTimeout(() => completeStep(20), 1000);
+      } else {
+        showToast('เส้นเลือดไม่เหมาะสม ลองใหม่', 'error');
+      }
+    }
+
+    function showIVInjection() {
+      const area = document.getElementById('training-area');
+      area.innerHTML = `
+        <div class="flex flex-col items-center justify-center h-full">
+          <div class="text-center mb-8">
+            <div class="text-8xl mb-6">💉</div>
+            <h3 class="text-2xl font-bold text-gray-800 mb-4">แทงเข็มเข้าเส้นเลือด</h3>
+            <p class="text-gray-600 mb-4">แทงเข็มในมุม 25-30 องศา ตามแนวเส้นเลือด</p>
+            <div class="bg-blue-50 border-2 border-blue-300 rounded-xl p-4 inline-block">
+              <p class="text-sm text-blue-800 font-semibold">⚠️ มุมที่ถูกต้อง: 25-30°</p>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      const buttons = document.getElementById('action-buttons');
+      buttons.innerHTML = `
+        <button onclick="completeStep(25)" class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold py-4 px-12 rounded-xl transition-all transform hover:scale-105">
+          แทงเข็มสำเร็จ
+        </button>
+      `;
+    }
+
+    function showVerification() {
+      const area = document.getElementById('training-area');
+      area.innerHTML = `
+        <div class="flex flex-col items-center justify-center h-full">
+          <div class="text-center mb-8">
+            <div class="text-8xl mb-6">🩸</div>
+            <h3 class="text-2xl font-bold text-gray-800 mb-4">ตรวจสอบการเข้าเส้น</h3>
+            <p class="text-gray-600">ดูดกระบอกฉีดยาเพื่อตรวจสอบเลือดย้อนกลับ</p>
+          </div>
+        </div>
+      `;
+      
+      const buttons = document.getElementById('action-buttons');
+      buttons.innerHTML = `
+        <button onclick="completeStep(10)" class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold py-4 px-12 rounded-xl transition-all transform hover:scale-105">
+          ตรวจสอบเสร็จแล้ว
+        </button>
+      `;
+    }
+
+    function showAssessment() {
+      const area = document.getElementById('training-area');
+      area.innerHTML = `
+        <div class="flex flex-col items-center justify-center h-full">
+          <div class="text-center mb-8">
+            <div class="text-8xl mb-6">🚨</div>
+            <h3 class="text-2xl font-bold text-gray-800 mb-4">ประเมินสถานการณ์</h3>
+            <p class="text-gray-600">ตรวจสอบความปลอดภัยของสถานที่เกิดเหตุ</p>
+          </div>
+        </div>
+      `;
+      
+      const buttons = document.getElementById('action-buttons');
+      buttons.innerHTML = `
+        <button onclick="completeStep(10)" class="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold py-4 px-12 rounded-xl transition-all transform hover:scale-105">
+          สถานที่ปลอดภัย
+        </button>
+      `;
+    }
+
+    function showCheckResponse() {
+      const area = document.getElementById('training-area');
+      area.innerHTML = `
+        <div class="flex flex-col items-center justify-center h-full">
+          <div class="text-center mb-8">
+            <svg class="w-64 h-64 mx-auto mb-6" viewBox="0 0 300 300">
+              <ellipse cx="150" cy="100" rx="50" ry="60" fill="#fde68a" stroke="#f59e0b" stroke-width="3"/>
+              <circle cx="135" cy="90" r="8" fill="#78350f"/>
+              <circle cx="165" cy="90" r="8" fill="#78350f"/>
+              <path d="M 135 110 Q 150 105 165 110" stroke="#78350f" stroke-width="3" fill="none"/>
+              <rect x="100" y="150" width="100" height="120" rx="20" fill="#fed7aa" stroke="#f59e0b" stroke-width="3"/>
+            </svg>
+            <h3 class="text-2xl font-bold text-gray-800 mb-4">ตรวจสอบการตอบสนอง</h3>
+            <p class="text-gray-600">เรียกผู้ป่วยและสั่นไหล่เบา ๆ</p>
+          </div>
+        </div>
+      `;
+      
+      const buttons = document.getElementById('action-buttons');
+      buttons.innerHTML = `
+        <button onclick="completeStep(10)" class="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold py-4 px-12 rounded-xl transition-all transform hover:scale-105">
+          ไม่มีการตอบสนอง
+        </button>
+      `;
+    }
+
+    function showCallHelp() {
+      const area = document.getElementById('training-area');
+      area.innerHTML = `
+        <div class="flex flex-col items-center justify-center h-full">
+          <div class="text-center mb-8">
+            <div class="text-8xl mb-6">📞</div>
+            <h3 class="text-2xl font-bold text-gray-800 mb-4">แจ้งเหตุฉุกเฉิน</h3>
+            <p class="text-gray-600">โทรแจ้ง 1669 และขอ AED</p>
+          </div>
+        </div>
+      `;
+      
+      const buttons = document.getElementById('action-buttons');
+      buttons.innerHTML = `
+        <button onclick="completeStep(10)" class="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold py-4 px-12 rounded-xl transition-all transform hover:scale-105">
+          แจ้งเหตุแล้ว
+        </button>
+      `;
+    }
+
+    function showCPR() {
+      cprCompressions = 0;
+      cprDepth = 0;
+      
+      const area = document.getElementById('training-area');
+      area.innerHTML = `
+        <div class="grid grid-cols-2 gap-8 h-full">
+          <div class="flex flex-col items-center justify-center">
+            <svg class="w-80 h-80 mb-4" viewBox="0 0 300 300">
+              <ellipse cx="150" cy="80" rx="40" ry="50" fill="#fde68a" stroke="#f59e0b" stroke-width="3"/>
+              <rect x="110" y="120" width="80" height="100" rx="15" fill="#fed7aa" stroke="#f59e0b" stroke-width="3"/>
+              <circle cx="150" cy="170" r="25" fill="rgba(239, 68, 68, 0.3)" stroke="#ef4444" stroke-width="3" class="pulse-animation"/>
+              <text x="150" y="180" text-anchor="middle" fill="#ef4444" font-size="16" font-weight="bold">กด</text>
+            </svg>
+            <button id="cpr-button" onclick="performCompression()" class="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold py-6 px-16 rounded-xl text-xl transition-all transform hover:scale-105 active:scale-95">
+              กดหน้าอก
+            </button>
+          </div>
+          <div class="flex flex-col justify-center">
+            <div class="bg-white rounded-xl p-6 shadow-lg mb-6">
+              <h4 class="text-lg font-bold text-gray-800 mb-4">สถิติการกด</h4>
+              <div class="space-y-3">
+                <div>
+                  <div class="text-sm text-gray-600 mb-1">จำนวนครั้ง</div>
+                  <div class="text-3xl font-bold text-red-600" id="cpr-count">0</div>
+                </div>
+                <div>
+                  <div class="text-sm text-gray-600 mb-1">อัตราการกด (ครั้ง/นาที)</div>
+                  <div class="text-2xl font-bold text-gray-800" id="cpr-rate">0</div>
+                </div>
+              </div>
+            </div>
+            <div class="bg-white rounded-xl p-6 shadow-lg">
+              <h4 class="text-lg font-bold text-gray-800 mb-4">ความลึก</h4>
+              <div class="cpr-meter">
+                <div id="cpr-depth-indicator" class="cpr-indicator" style="height: 0%"></div>
+              </div>
+              <div class="text-center mt-3 text-sm text-gray-600">เป้าหมาย: 100-120 ครั้ง/นาที</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function performCompression() {
+      cprCompressions++;
+      cprDepth = Math.random() * 100;
+      
+      document.getElementById('cpr-count').textContent = cprCompressions;
+      document.getElementById('cpr-depth-indicator').style.height = `${cprDepth}%`;
+      
+      const rate = Math.min(120, cprCompressions * 2);
+      document.getElementById('cpr-rate').textContent = rate;
+      
+      if (cprCompressions >= 30) {
+        showToast('ทำ CPR ครบ 30 ครั้งแล้ว!', 'success');
+        setTimeout(() => completeStep(30), 1500);
+      }
+    }
+
+    function showEvaluate() {
+      const area = document.getElementById('training-area');
+      area.innerHTML = `
+        <div class="flex flex-col items-center justify-center h-full">
+          <div class="text-center mb-8">
+            <div class="text-8xl mb-6">✅</div>
+            <h3 class="text-2xl font-bold text-gray-800 mb-4">ประเมินผลและทำซ้ำ</h3>
+            <p class="text-gray-600">ตรวจสอบชีพจรและทำ CPR ซ้ำตามความจำเป็น</p>
+          </div>
+        </div>
+      `;
+      
+      const buttons = document.getElementById('action-buttons');
+      buttons.innerHTML = `
+        <button onclick="completeStep(10)" class="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold py-4 px-12 rounded-xl transition-all transform hover:scale-105">
+          เสร็จสิ้นการปฐมพยาบาล
+        </button>
+      `;
+    }
+
+    async function completeStep(points) {
+      score += points;
+      currentStep++;
+      
+      if (currentStep >= moduleSteps.length) {
+        await finishModule();
+      } else {
+        updateStepsProgress();
+        loadStep();
+        showToast('ขั้นตอนสำเร็จ! +' + points + ' คะแนน', 'success');
+      }
+    }
+
+    async function finishModule() {
+      const endTime = new Date();
+      const duration = Math.floor((endTime - startTime) / 1000);
+      const accuracy = Math.round((score / (moduleSteps.length * 20)) * 100);
+      
+      const trainingRecord = {
+        module_name: modules[currentModule].name(),
+        score: score,
+        accuracy: accuracy,
+        completed_steps: moduleSteps.length,
+        total_steps: moduleSteps.length,
+        timestamp: new Date().toISOString(),
+        feedback: generateFeedback(score, accuracy)
+      };
+      
+      if (window.dataSdk && trainingData.length < 999) {
+        const result = await window.dataSdk.create(trainingRecord);
+        if (!result.isOk) {
+          showToast('ไม่สามารถบันทึกผลการฝึกได้', 'error');
+        }
+      } else if (trainingData.length >= 999) {
+        showToast('จำนวนบันทึกถึงขีดจำกัด 999 รายการแล้ว', 'error');
+      }
+      
+      showFeedback(trainingRecord);
+    }
+
+    function generateFeedback(score, accuracy) {
+      if (accuracy >= 90) {
+        return '🌟 ยอดเยี่ยม! คุณมีทักษะที่ดีเยี่ยมในการปฏิบัติขั้นตอนทั้งหมด ความแม่นยำและความรวดเร็วอยู่ในระดับมืออาชีพ';
+      } else if (accuracy >= 75) {
+        return '👍 ดีมาก! คุณเข้าใจขั้นตอนส่วนใหญ่ แต่ยังมีบางจุดที่ควรปรับปรุงเพื่อความแม่นยำมากขึ้น';
+      } else if (accuracy >= 60) {
+        return '📚 พอใช้ คุณควรทบทวนขั้นตอนบางส่วนและฝึกฝนเพิ่มเติม โดยเฉพาะการเลือกตำแหน่งและเทคนิคการฉีด';
+      } else {
+        return '💪 ต้องพัฒนาเพิ่มเติม แนะนำให้ทบทวนทฤษฎีและฝึกปฏิบัติซ้ำเพื่อเพิ่มความชำนาญ';
+      }
+    }
+
+    function showFeedback(record) {
+      document.getElementById('training-screen').classList.add('hidden');
+      document.getElementById('feedback-screen').classList.remove('hidden');
+      
+      const icon = document.getElementById('feedback-icon');
+      if (record.accuracy >= 90) {
+        icon.innerHTML = '<div class="text-9xl">🏆</div>';
+      } else if (record.accuracy >= 75) {
+        icon.innerHTML = '<div class="text-9xl">⭐</div>';
+      } else {
+        icon.innerHTML = '<div class="text-9xl">📖</div>';
+      }
+      
+      document.getElementById('final-score').textContent = record.score;
+      document.getElementById('accuracy-display').textContent = record.accuracy + '%';
+      document.getElementById('steps-completed-display').textContent = 
+        `${record.completed_steps}/${record.total_steps}`;
+      document.getElementById('feedback-text').textContent = record.feedback;
+    }
+
+    function retryModule() {
+      document.getElementById('feedback-screen').classList.add('hidden');
+      startModule(currentModule);
+    }
+
+    function exitToMenu() {
+      document.getElementById('feedback-screen').classList.add('hidden');
+      document.getElementById('main-menu').classList.remove('hidden');
+    }
+
+    function exitModule() {
+      if (cprInterval) {
+        clearInterval(cprInterval);
+      }
+      
+      const message = document.createElement('div');
+      message.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+      message.innerHTML = `
+        <div class="bg-white rounded-2xl p-8 max-w-md text-center">
+          <h3 class="text-2xl font-bold text-gray-800 mb-4">ออกจากการฝึก?</h3>
+          <p class="text-gray-600 mb-6">ความคืบหน้าจะไม่ถูกบันทึก</p>
+          <div class="flex gap-4 justify-center">
+            <button onclick="confirmExit()" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-8 rounded-xl">
+              ออกจากการฝึก
+            </button>
+            <button onclick="cancelExit()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-8 rounded-xl">
+              กลับไปฝึกต่อ
+            </button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(message);
+    }
+
+    function confirmExit() {
+      document.querySelector('.fixed.inset-0').remove();
+      document.getElementById('training-screen').classList.add('hidden');
+      document.getElementById('main-menu').classList.remove('hidden');
+    }
+
+    function cancelExit() {
+      document.querySelector('.fixed.inset-0').remove();
+    }
+
+    function showToast(message, type) {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.remove();
+      }, 3000);
+    }
+
+    function updateTrainingHistory(data) {
+      const container = document.getElementById('training-history');
+      if (data.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-center py-8">ยังไม่มีประวัติการฝึก</p>';
+        return;
+      }
+      
+      const sortedData = [...data].sort((a, b) => 
+        new Date(b.timestamp) - new Date(a.timestamp)
+      );
+      
+      container.innerHTML = sortedData.map(record => {
+        const date = new Date(record.timestamp);
+        const dateStr = date.toLocaleDateString('th-TH', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        
+        return `
+          <div class="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-6 border-2 border-gray-200">
+            <div class="flex items-center justify-between">
+              <div class="flex-1">
+                <h4 class="text-lg font-bold text-gray-800 mb-2">${record.module_name}</h4>
+                <p class="text-sm text-gray-600 mb-3">${dateStr}</p>
+                <div class="grid grid-cols-3 gap-4">
+                  <div>
+                    <div class="text-xs text-gray-500">คะแนน</div>
+                    <div class="text-xl font-bold text-teal-600">${record.score}</div>
+                  </div>
+                  <div>
+                    <div class="text-xs text-gray-500">ความแม่นยำ</div>
+                    <div class="text-xl font-bold text-blue-600">${record.accuracy}%</div>
+                  </div>
+                  <div>
+                    <div class="text-xs text-gray-500">ขั้นตอน</div>
+                    <div class="text-xl font-bold text-gray-700">${record.completed_steps}/${record.total_steps}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    const dataHandler = {
+      onDataChanged(data) {
+        trainingData = data;
+        updateTrainingHistory(data);
+      }
+    };
+
+    async function initializeApp() {
+      if (window.dataSdk) {
+        const initResult = await window.dataSdk.init(dataHandler);
+        if (!initResult.isOk) {
+          console.error('Failed to initialize data SDK');
+        }
+      }
+      
+      if (window.elementSdk) {
+        await window.elementSdk.init({
+          defaultConfig,
+          onConfigChange: async (config) => {
+            const appTitle = document.getElementById('app-title');
+            const appSubtitle = document.getElementById('app-subtitle');
+            const moduleATitle = document.getElementById('module-a-title');
+            const moduleBTitle = document.getElementById('module-b-title');
+            const moduleCTitle = document.getElementById('module-c-title');
+            
+            if (appTitle) appTitle.textContent = config.app_title || defaultConfig.app_title;
+            if (appSubtitle) appSubtitle.textContent = config.app_subtitle || defaultConfig.app_subtitle;
+            if (moduleATitle) moduleATitle.textContent = config.module_a_title || defaultConfig.module_a_title;
+            if (moduleBTitle) moduleBTitle.textContent = config.module_b_title || defaultConfig.module_b_title;
+            if (moduleCTitle) moduleCTitle.textContent = config.module_c_title || defaultConfig.module_c_title;
+          },
+          mapToCapabilities: (config) => ({
+            recolorables: [],
+            borderables: [],
+            fontEditable: undefined,
+            fontSizeable: undefined
+          }),
+          mapToEditPanelValues: (config) => new Map([
+            ['app_title', config.app_title || defaultConfig.app_title],
+            ['app_subtitle', config.app_subtitle || defaultConfig.app_subtitle],
+            ['module_a_title', config.module_a_title || defaultConfig.module_a_title],
+            ['module_b_title', config.module_b_title || defaultConfig.module_b_title],
+            ['module_c_title', config.module_c_title || defaultConfig.module_c_title]
+          ])
+        });
+      }
+    }
+
+    initializeApp();
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9abc265a60064b64',t:'MTc2NTM2MzQ5Ni4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
